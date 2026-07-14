@@ -57,7 +57,7 @@ if ask_section "Create New System User"; then
 	TARGET_USER=${custom_user:-user1}
 
 	echo -e "${YELLOW}[RUNNING] Creating user '$TARGET_USER'...${NC}"
-	if sudo adduser "$TARGET_USER"; then
+	if sudo adduser --gecos "" "$TARGET_USER"; then
 		sudo usermod -aG sudo "$TARGET_USER"
 		log_status "Create User ($TARGET_USER)" "COMPLETED"
 	else
