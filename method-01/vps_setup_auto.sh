@@ -103,6 +103,11 @@ if ask_section "Desktop Environment (XFCE4) & Remote Desktop (XRDP)"; then
 	DO_DESKTOP=true
 fi
 
+DO_SYSTEM_SETTINGS=false
+if ask_section "System Settings Change (TasksMax Limit)"; then
+	DO_SYSTEM_SETTINGS=true
+fi
+
 DO_BROWSERS=false
 BROWSER_CHOICES=""
 if ask_section "Software Installation (Browsers)"; then
@@ -204,7 +209,30 @@ else
 fi
 
 # ==========================================
-# 4. Software Section (Browser Multi-Selection)
+# 4. System Settings Change
+# ==========================================
+echo -e "\n${BOLD}▶ RUNNING SECTION: System Settings Change (TasksMax Limit)${NC}"
+if [ "$DO_SYSTEM_SETTINGS" = true ]; then
+	echo -e "${YELLOW}[RUNNING] Applying systemd TasksMax fix...${NC}"
+
+	sudo systemctl set-property user-1000.slice TasksMax=infinity 2>/dev/null || true
+	sudo mkdir -p /etc/systemd/system/user-.slice.d
+
+	if cat <<EOF | sudo tee /etc/systemd/system/user-.slice.d/override.conf >/dev/null; then
+[Slice]
+TasksMax=infinity
+EOF
+		sudo systemctl daemon-reload
+		log_status "System Settings (TasksMax)" "COMPLETED"
+	else
+		log_status "System Settings (TasksMax)" "FAILED"
+	fi
+else
+	log_status "System Settings (TasksMax)" "SKIPPED"
+fi
+
+# ==========================================
+# 5. Software Section (Browser Multi-Selection)
 # ==========================================
 echo -e "\n${BOLD}▶ RUNNING SECTION: Software Installation (Browsers)${NC}"
 if [ "$DO_BROWSERS" = true ]; then
@@ -280,7 +308,7 @@ else
 fi
 
 # ==========================================
-# 5. Zip & Utilities
+# 6. Zip & Utilities
 # ==========================================
 echo -e "\n${BOLD}▶ RUNNING SECTION: Zip & Utilities Installation${NC}"
 if [ "$DO_UTILITIES" = true ]; then
@@ -325,7 +353,7 @@ else
 fi
 
 # ==========================================
-# 6. Final Summary Report
+# 7. Final Summary Report
 # ==========================================
 echo -e "\n${BOLD}${GREEN}==================================================${NC}"
 echo -e "${BOLD}          FINAL VPS SETUP SUMMARY STATUS          ${NC}"
@@ -350,7 +378,7 @@ done
 echo -e "${BOLD}${GREEN}==================================================${NC}\n"
 
 # ==========================================
-# 7. System Reboot
+# 8. System Reboot
 # ==========================================
 if [ "$DO_REBOOT" = true ]; then
 	echo -e "${GREEN}Rebooting VPS now...${NC}"

@@ -1,31 +1,64 @@
-## What Your System Info Tells Us
+# Chromium / Browser Crash on VPS (Sad Face Icon)
 
-| Check | Result | Meaning |
-|---|---|---|
-| `ulimit -u` | unlimited | ✅ No process limit |
-| `nproc` | 3 | Your VPS is cgroup-limited to **3 CPU cores** |
-| `user_beancounters` | empty | Not OpenVZ (likely KVM/LXC — good) |
-| RAM | 5859 MB total, 5419 MB available | ✅ Plenty of memory |
-| Swap | 0 | ⚠️ No swap (minor concern, RAM is fine for now) |
+## The Real Root Cause: systemd TasksMax
+Your entire user session (XFCE + xrdp + panel + terminal + Chrome and **every thread of every process**) is confined to a cgroup with a hard limit of **675 tasks (threads)**.
 
-**Root cause found:** Remember these errors from your earlier logs?
+- Your session at idle already uses ~269 threads (`ps -eLf | wc -l`)
+- Chrome spawns a process per tab/extension/utility, each with 20–40 threads
+- Opening Settings/Extensions pages spawns extra renderer + utility processes → limit hit → `pthread_create: Resource temporarily unavailable (11)` → `Zygote could not fork` → sad-face tab
+
+*Why 675?* systemd's `DefaultTasksMax` is 15% of the kernel/container pid limit. 675 = 15% of 4500, which suggests your VPS container itself has a ~4500 pid ceiling set by the host. Setting `TasksMax=infinity` means you're now only bound by that container limit (~4500), which is plenty for Chrome.
+
+## Verify It (optional but satisfying)
+In one terminal:
+```bash
+watch -n1 cat /sys/fs/cgroup/user.slice/user-1000.slice/pids.current
 ```
-open /sys/devices/system/cpu/cpu23/cpufreq/... No such file or directory
-pthread_create: Resource temporarily unavailable (11)
+Then launch Chrome and open Settings. You'll see the counter climb toward ~675 right as it crashes.
+
+## The Primary Fix
+
+Raise the systemd `TasksMax` limit. Setting `TasksMax=infinity` will prevent the session from artificially capping threads.
+
+```bash
+# Raise the limit for your user slice (persistent across reboots)
+sudo systemctl set-property user-1000.slice TasksMax=infinity
+
+# Also raise the global default so it applies to new sessions/users
+sudo mkdir -p /etc/systemd/system/user-.slice.d
+sudo tee /etc/systemd/system/user-.slice.d/override.conf <<EOF
+[Slice]
+TasksMax=infinity
+EOF
+
+sudo systemctl daemon-reload
 ```
 
-That means Chromium was detecting **24+ CPUs** (the physical host's CPUs are visible inside your container) and trying to spawn threads/processes for all of them — but your container's cgroup only allows **3 cores**. The excess thread creation was rejected → renderer processes died → sad face crash icon.
+Verify the limits:
+```bash
+systemctl show --property TasksMax user-1000.slice
+# Should now show: TasksMax=infinity
 
-**Why your fix works:**
-- `taskset -c 0-3` → pins Chromium to the cores it can actually use, so it stops over-detecting
-- `--renderer-process-limit=2` → limits renderer processes so each tab doesn't spawn a new process
+cat /sys/fs/cgroup/user.slice/user-1000.slice/pids.max
+# Should show: max
+```
+
+**Important:** Log out of your XRDP session completely and reconnect (so your session picks up the new limit), and run:
+```bash
+google-chrome --no-sandbox --disable-gpu --disable-dev-shm-usage
+```
+*No `taskset`, no `--renderer-process-limit`, no `--no-zygote` needed.*
 
 ---
 
-## Make It Permanent
+## Legacy Workaround (Taskset & Process Limits)
+*(Note: The `TasksMax` fix above is the proper solution. This older workaround is kept for historical context.)*
+
+Initially, it seemed Chromium crashed because it detected 24+ physical CPUs and tried to spawn threads for all of them, ignoring the cgroup limit of 3 CPU cores (`nproc`).
+
+The workaround was to create a launcher script pinning the CPU and limiting renderer processes:
 
 ### 1. Create a wrapper script (as root):
-
 ```bash
 sudo nano /usr/local/bin/chromium-launcher
 ```
@@ -39,4 +72,4 @@ taskset -c 0-3 /snap/bin/chromium --no-sandbox --disable-gpu --disable-dev-shm-u
 sudo chmod +x /usr/local/bin/chromium-launcher
 ```
 
-Now just type `chromium-launcher` anytime.
+Now you could launch the browser using `chromium-launcher`. This worked because restricting cores and renderers kept the thread count artificially low, staying under the hidden `TasksMax=675` limit.

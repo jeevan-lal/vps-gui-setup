@@ -122,7 +122,29 @@ else
 fi
 
 # ==========================================
-# 4. Software Section (Browser Multi-Selection)
+# 4. System Settings Change
+# ==========================================
+if ask_section "System Settings Change (TasksMax Limit)"; then
+	echo -e "${YELLOW}[RUNNING] Applying systemd TasksMax fix...${NC}"
+
+	sudo systemctl set-property user-1000.slice TasksMax=infinity 2>/dev/null || true
+	sudo mkdir -p /etc/systemd/system/user-.slice.d
+
+	if cat <<EOF | sudo tee /etc/systemd/system/user-.slice.d/override.conf >/dev/null; then
+[Slice]
+TasksMax=infinity
+EOF
+		sudo systemctl daemon-reload
+		log_status "System Settings (TasksMax)" "COMPLETED"
+	else
+		log_status "System Settings (TasksMax)" "FAILED"
+	fi
+else
+	log_status "System Settings (TasksMax)" "SKIPPED"
+fi
+
+# ==========================================
+# 5. Software Section (Browser Multi-Selection)
 # ==========================================
 if ask_section "Software Installation (Browsers)"; then
 	echo -e "\nWhich browsers would you like to install?"
@@ -207,7 +229,7 @@ else
 fi
 
 # ==========================================
-# 5. Zip & Utilities
+# 6. Zip & Utilities
 # ==========================================
 if ask_section "Zip & Utilities Installation"; then
 	echo -e "\nWhich utilities would you like to install?"
@@ -259,7 +281,7 @@ else
 fi
 
 # ==========================================
-# 6. Final Summary Report
+# 7. Final Summary Report
 # ==========================================
 echo -e "\n${BOLD}${GREEN}==================================================${NC}"
 echo -e "${BOLD}          FINAL VPS SETUP SUMMARY STATUS          ${NC}"
@@ -284,7 +306,7 @@ done
 echo -e "${BOLD}${GREEN}==================================================${NC}\n"
 
 # ==========================================
-# 7. System Reboot Prompt
+# 8. System Reboot Prompt
 # ==========================================
 read -p "Setup finished. Would you like to reboot the VPS now? (y/n): " reboot_choice
 case "$reboot_choice" in
