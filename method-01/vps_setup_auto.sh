@@ -86,9 +86,17 @@ if ask_section "Software Installation (Browsers)"; then
 	read -p "Your selection: " BROWSER_CHOICES
 fi
 
-DO_ZIP=false
-if ask_section "Zip Utilities (Thunar Archive Plugin)"; then
-	DO_ZIP=true
+DO_UTILITIES=false
+UTILITY_CHOICES=""
+if ask_section "Zip & Utilities Installation"; then
+	DO_UTILITIES=true
+	echo -e "\nWhich utilities would you like to install?"
+	echo -e "Enter numbers separated by spaces (e.g., ${GREEN}1 2${NC}):"
+	echo "1) Thunar Archive Plugin (Zip Utilities)"
+	echo "2) Terminator (Terminal Emulator)"
+	echo "3) Skip/None"
+
+	read -p "Your selection: " UTILITY_CHOICES
 fi
 
 DO_REBOOT=false
@@ -238,16 +246,46 @@ fi
 # ==========================================
 # 5. Zip & Utilities
 # ==========================================
-echo -e "\n${BOLD}▶ RUNNING SECTION: Zip Utilities (Thunar Archive Plugin)${NC}"
-if [ "$DO_ZIP" = true ]; then
-	echo -e "${YELLOW}[RUNNING] Installing Archive Utilities...${NC}"
-	if sudo apt update && sudo apt install thunar-archive-plugin -y; then
-		log_status "Zip Utilities" "COMPLETED"
+echo -e "\n${BOLD}▶ RUNNING SECTION: Zip & Utilities Installation${NC}"
+if [ "$DO_UTILITIES" = true ]; then
+	utility_selected=false
+
+	for choice in $UTILITY_CHOICES; do
+		case $choice in
+		1)
+			echo -e "${YELLOW}[RUNNING] Installing Archive Utilities (Thunar Archive Plugin)...${NC}"
+			if sudo apt update && sudo apt install thunar-archive-plugin -y; then
+				log_status "  - Thunar Archive Plugin" "COMPLETED"
+			else
+				log_status "  - Thunar Archive Plugin" "FAILED"
+			fi
+			utility_selected=true
+			;;
+		2)
+			echo -e "${YELLOW}[RUNNING] Installing Terminator...${NC}"
+			if sudo apt update && sudo apt install terminator -y; then
+				log_status "  - Terminator" "COMPLETED"
+			else
+				log_status "  - Terminator" "FAILED"
+			fi
+			utility_selected=true
+			;;
+		3)
+			break
+			;;
+		*)
+			echo -e "${RED}[INVALID CHOICE]: $choice${NC}"
+			;;
+		esac
+	done
+
+	if [ "$utility_selected" = true ]; then
+		log_status "Zip & Utilities Deployment" "COMPLETED"
 	else
-		log_status "Zip Utilities" "FAILED"
+		log_status "Zip & Utilities Deployment" "SKIPPED/NO SELECTION"
 	fi
 else
-	log_status "Zip Utilities" "SKIPPED"
+	log_status "Zip & Utilities Deployment" "SKIPPED"
 fi
 
 # ==========================================
