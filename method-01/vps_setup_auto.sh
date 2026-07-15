@@ -32,6 +32,38 @@ ask_section() {
 	esac
 }
 
+# Helper function to create an optimized browser launcher and desktop shortcut
+create_browser_launcher() {
+	local b_name="$1"
+	local b_exec="$2"
+	local b_disp="$3"
+	local b_icon="$4"
+
+	echo -e "${YELLOW}[RUNNING] Creating optimized launcher for ${b_disp}...${NC}"
+
+	# Wrapper script
+	cat <<EOF | sudo tee /usr/local/bin/${b_name}-launcher >/dev/null
+#!/bin/bash
+taskset -c 0-3 ${b_exec} --no-sandbox --disable-gpu --disable-dev-shm-usage --renderer-process-limit=2 "\$@"
+EOF
+	sudo chmod +x /usr/local/bin/${b_name}-launcher
+
+	# Desktop shortcut
+	sudo mkdir -p /home/"$TARGET_USER"/Desktop
+	cat <<EOF | sudo tee /home/"$TARGET_USER"/Desktop/${b_name}.desktop >/dev/null
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=${b_disp} (Optimized)
+Exec=/usr/local/bin/${b_name}-launcher
+Icon=${b_icon}
+Terminal=false
+StartupNotify=true
+EOF
+	sudo chmod +x /home/"$TARGET_USER"/Desktop/${b_name}.desktop
+	sudo chown "$TARGET_USER":"$TARGET_USER" /home/"$TARGET_USER"/Desktop/${b_name}.desktop
+}
+
 # ==========================================
 # GATHER USER CONFIGURATION FIRST
 # ==========================================
@@ -184,6 +216,7 @@ if [ "$DO_BROWSERS" = true ]; then
 			echo -e "${YELLOW}[RUNNING] Installing Google Chrome...${NC}"
 			wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
 			if sudo apt install ./google-chrome-stable_current_amd64.deb -y; then
+				create_browser_launcher "google-chrome" "/usr/bin/google-chrome" "Google Chrome" "google-chrome"
 				log_status "  - Google Chrome" "COMPLETED"
 			else
 				log_status "  - Google Chrome" "FAILED"
@@ -197,6 +230,7 @@ if [ "$DO_BROWSERS" = true ]; then
 			echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/edge stable main" | sudo tee /etc/apt/sources.list.d/microsoft-edge.list
 			sudo apt update
 			if sudo apt install microsoft-edge-stable -y; then
+				create_browser_launcher "microsoft-edge" "/usr/bin/microsoft-edge" "Microsoft Edge" "microsoft-edge"
 				log_status "  - Microsoft Edge" "COMPLETED"
 			else
 				log_status "  - Microsoft Edge" "FAILED"
@@ -206,6 +240,7 @@ if [ "$DO_BROWSERS" = true ]; then
 		3)
 			echo -e "${YELLOW}[RUNNING] Installing Chromium...${NC}"
 			if sudo apt install chromium-browser -y; then
+				create_browser_launcher "chromium" "/usr/bin/chromium-browser" "Chromium" "chromium-browser"
 				log_status "  - Chromium" "COMPLETED"
 			else
 				log_status "  - Chromium" "FAILED"
@@ -219,6 +254,7 @@ if [ "$DO_BROWSERS" = true ]; then
 			echo "deb [signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg] https://brave-browser-apt-release.s3.brave.com/ stable main" | sudo tee /etc/apt/sources.list.d/brave-browser-release.list
 			sudo apt update
 			if sudo apt install brave-browser -y; then
+				create_browser_launcher "brave-browser" "/usr/bin/brave-browser" "Brave Browser" "brave-browser"
 				log_status "  - Brave Browser" "COMPLETED"
 			else
 				log_status "  - Brave Browser" "FAILED"
