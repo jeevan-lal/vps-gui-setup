@@ -46,10 +46,24 @@ fi
 
 DO_CREATE_USER=false
 TARGET_USER="user1"
+TARGET_PASS=""
 if ask_section "Create New System User"; then
 	DO_CREATE_USER=true
 	read -p "Enter the username you want to create [default: user1]: " custom_user
 	TARGET_USER=${custom_user:-user1}
+
+	read -s -p "Enter the password for $TARGET_USER: " TARGET_PASS
+	echo ""
+	read -s -p "Confirm the password for $TARGET_USER: " TARGET_PASS_CONFIRM
+	echo ""
+
+	while [ "$TARGET_PASS" != "$TARGET_PASS_CONFIRM" ] || [ -z "$TARGET_PASS" ]; do
+		echo -e "${RED}Passwords do not match or are empty. Please try again.${NC}"
+		read -s -p "Enter the password for $TARGET_USER: " TARGET_PASS
+		echo ""
+		read -s -p "Confirm the password for $TARGET_USER: " TARGET_PASS_CONFIRM
+		echo ""
+	done
 fi
 
 DO_DESKTOP=false
@@ -115,7 +129,8 @@ fi
 echo -e "\n${BOLD}▶ RUNNING SECTION: Create New System User${NC}"
 if [ "$DO_CREATE_USER" = true ]; then
 	echo -e "${YELLOW}[RUNNING] Creating user '$TARGET_USER'...${NC}"
-	if sudo adduser --gecos "" "$TARGET_USER"; then
+	if sudo adduser --disabled-password --gecos "" "$TARGET_USER"; then
+		echo "$TARGET_USER:$TARGET_PASS" | sudo chpasswd
 		sudo usermod -aG sudo "$TARGET_USER"
 		log_status "Create User ($TARGET_USER)" "COMPLETED"
 	else
