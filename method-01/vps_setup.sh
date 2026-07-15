@@ -44,7 +44,7 @@ create_browser_launcher() {
 	# Wrapper script
 	cat <<EOF | sudo tee /usr/local/bin/${b_name}-launcher >/dev/null
 #!/bin/bash
-taskset -c 0-3 ${b_exec} --no-sandbox --disable-gpu --disable-dev-shm-usage --renderer-process-limit=2 "\$@"
+${b_exec} --no-sandbox --disable-gpu --disable-dev-shm-usage "\$@"
 EOF
 	sudo chmod +x /usr/local/bin/${b_name}-launcher
 
