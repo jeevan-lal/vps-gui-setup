@@ -187,9 +187,11 @@ if ask_section "Software Installation (Browsers)"; then
 			browser_selected=true
 			;;
 		3)
-			echo -e "${YELLOW}[RUNNING] Installing Chromium...${NC}"
-			if sudo apt install chromium-browser -y; then
-				create_browser_launcher "chromium" "/usr/bin/chromium-browser" "Chromium" "chromium-browser"
+			echo -e "${YELLOW}[RUNNING] Installing Chromium (Native DEB via PPA)...${NC}"
+			sudo add-apt-repository ppa:xtradeb/apps -y
+			sudo apt update
+			if sudo apt install chromium -y; then
+				create_browser_launcher "chromium" "/usr/bin/chromium" "Chromium" "chromium"
 				log_status "  - Chromium" "COMPLETED"
 			else
 				log_status "  - Chromium" "FAILED"

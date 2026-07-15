@@ -66,6 +66,8 @@ sudo apt purge google-chrome-stable
 
 **Chromium**
 
+NOTE: this is slower then `sudo apt install chromium`
+
 ```bash
 sudo apt install chromium-browser
 ```
