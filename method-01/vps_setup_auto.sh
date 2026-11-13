@@ -131,7 +131,8 @@ if ask_section "Zip & Utilities Installation"; then
 	echo -e "Enter numbers separated by spaces (e.g., ${GREEN}1 2${NC}):"
 	echo "1) Thunar Archive Plugin (Zip Utilities)"
 	echo "2) Terminator (Terminal Emulator)"
-	echo "3) Skip/None"
+	echo "3) RustDesk (Latest Remote Desktop)"
+	echo "4) Skip/None"
 
 	read -p "Your selection: " UTILITY_CHOICES
 fi
@@ -337,6 +338,23 @@ if [ "$DO_UTILITIES" = true ]; then
 			utility_selected=true
 			;;
 		3)
+			echo -e "${YELLOW}[RUNNING] Installing latest RustDesk...${NC}"
+			sudo apt install -y curl wget
+			RUSTDESK_URL=$(curl -s https://api.github.com/repos/rustdesk/rustdesk/releases/latest | grep "browser_download_url.*x86_64\.deb" | head -n 1 | cut -d : -f 2,3 | tr -d ' "')
+			if [ -n "$RUSTDESK_URL" ] && wget "$RUSTDESK_URL" -O /tmp/rustdesk.deb; then
+				if sudo apt install -y /tmp/rustdesk.deb; then
+					rm -f /tmp/rustdesk.deb
+					log_status "  - RustDesk (Latest)" "COMPLETED"
+				else
+					rm -f /tmp/rustdesk.deb
+					log_status "  - RustDesk" "FAILED"
+				fi
+			else
+				log_status "  - RustDesk (Download)" "FAILED"
+			fi
+			utility_selected=true
+			;;
+		4)
 			break
 			;;
 		*)
